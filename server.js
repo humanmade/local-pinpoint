@@ -38,7 +38,7 @@ const makeRecord = ( id, event, endpoint ) => {
 		session_id: event.Session.Id,
 		start_timestamp: new Date( event.Session.StartTimestamp ).getTime(),
 	};
-	if ( event.Session.Duration && event.session.StopTimestamp ) {
+	if ( event.Session.Duration && event.Session.StopTimestamp ) {
 		session.duration = event.Session.Duration;
 		session.stop_timestamp = new Date( event.Session.StopTimestamp ).getTime();
 	}
