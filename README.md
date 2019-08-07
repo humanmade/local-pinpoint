@@ -14,7 +14,7 @@ The following AWS SDK API commands are supported:
 
 ```yaml
 services:
-  cognito:
+  pinpoint:
     image: humanmade/local-pinpoint
     ports:
       - 3000
@@ -31,8 +31,6 @@ services:
 
 networks:
   default:
-    external:
-      name: default
 ```
       
 ## Local Pinpoint
