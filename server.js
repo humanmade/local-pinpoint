@@ -8,10 +8,17 @@ const {
 } = require( 'micro-fork' );
 const rp = require( 'request-promise' );
 const fs = require( 'fs' );
-const { basename } = require( 'path' );
+const { resolve, basename } = require( 'path' );
 const { inspect, promisify } = require( 'util' );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
+
+// Make endpoints directory if it doesn't exist.
+fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
+	if ( err ) {
+		fs.mkdir( resolve( __dirname, 'endpoints' ) );
+	}
+} );
 
 const uuid = placeholder =>
 	placeholder
@@ -100,7 +107,7 @@ const addRecord = async data => {
 
 const setEndpoint = async ( data, id ) => {
 	try {
-		await writeFile( `/tmp/endpoints/${id}.json`, JSON.stringify( data ) );
+		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
 		return true;
 	} catch ( err ) {
 		console.error( 'could not write endpoint.json', err );
@@ -110,7 +117,7 @@ const setEndpoint = async ( data, id ) => {
 
 const getEndpoint = async id => {
 	try {
-		const endpoint = await readFile( `/tmp/endpoints/${id}.json` );
+		const endpoint = await readFile( resolve( __dirname, `endpoints/${id}.json` ) );
 		return JSON.parse( endpoint );
 	} catch ( err ) {
 		console.error( 'could not read endpoint.json', err );
