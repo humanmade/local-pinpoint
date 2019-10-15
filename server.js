@@ -16,7 +16,7 @@ const writeFile = promisify( fs.writeFile );
 // Make endpoints directory if it doesn't exist.
 fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 	if ( err ) {
-		fs.mkdir( resolve( __dirname, 'endpoints' ) );
+		fs.mkdir( resolve( __dirname, 'endpoints' ), () => {} );
 	}
 } );
 
