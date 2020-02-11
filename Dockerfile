@@ -6,6 +6,7 @@ WORKDIR /srv/app
 RUN mkdir -p /srv/app/endpoints
 
 ARG ELASTICSEARCH_HOST
+ARG INDEX_ROTATION
 
 RUN npm install --production
 

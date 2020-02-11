@@ -12,6 +12,7 @@ const { resolve, basename } = require( 'path' );
 const { inspect, promisify } = require( 'util' );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
+const { format } = require( 'date-fns' );
 
 // Make endpoints directory if it doesn't exist.
 fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
@@ -19,6 +20,25 @@ fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 		fs.mkdir( resolve( __dirname, 'endpoints' ), () => {} );
 	}
 } );
+
+const getIndexName = () => {
+	const date = new Date();
+	const indexRotation = process.env.INDEX_ROTATION || 'NoRotation';
+	const indexBase = 'analytics';
+	switch ( indexRotation ) {
+		case 'OneMonth':
+			return `${ indexBase }-${ format( date, "yyyy-MM" ) }`;
+		case 'OneWeek':
+			return `${ indexBase }-${ format( date, "yyyy-'w'ww" ) }`;
+		case 'OneDay':
+			return `${ indexBase }-${ format( date, "yyyy-MM-dd" ) }`;
+		case 'OneHour':
+			return `${ indexBase }-${ format( date, "yyyy-MM-dd-HH" ) }`;
+		case 'NoRotation':
+		default:
+			return indexBase;
+	}
+}
 
 const uuid = placeholder =>
 	placeholder
@@ -80,7 +100,7 @@ const makeRecord = ( id, event, endpoint ) => {
 const esRequest = async ( path, data, method = 'PUT' ) => {
 	try {
 		const rsp = await rp( {
-			uri: `${process.env.ELASTICSEARCH_HOST || 'http://elasticsearch:9200'}/${path}`,
+			uri: `${ process.env.ELASTICSEARCH_HOST || 'http://elasticsearch:9200' }/${ path }`,
 			body: data,
 			json: true,
 			method: method,
@@ -98,11 +118,11 @@ const esRequest = async ( path, data, method = 'PUT' ) => {
 const putMapping = async () => {
 	// Put the mapping.
 	const mapping = await readFile( `${__dirname}/mapping.json` );
-	return await esRequest( 'analytics', JSON.parse( mapping ) );
+	return await esRequest( getIndexName(), JSON.parse( mapping ) );
 }
 
 const addRecord = async data => {
-	return await esRequest( 'analytics/record/', data, 'POST' );
+	return await esRequest( `${ getIndexName() }/record/`, data, 'POST' );
 }
 
 const setEndpoint = async ( data, id ) => {

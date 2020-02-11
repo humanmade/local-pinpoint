@@ -12,10 +12,11 @@
   "author": "Human Made Limited <hello@humanmade.com>",
   "license": "GPL-2.0-or-later",
   "dependencies": {
+    "date-fns": "^2.9.0",
     "micro": "^9.3.4",
     "micro-fork": "^2.0.0",
     "request": "^2.88.0",
-    "request-promise": "^4.2.4"
+    "request-promise": "^4.2.5"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
