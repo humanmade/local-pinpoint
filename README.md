@@ -32,7 +32,13 @@ services:
 networks:
   default:
 ```
-      
-## Local Pinpoint
+
+## Index rotation
+
+Index rotation is supported in accordance with the [AWS Kinesis Firehose Elasticsearch destination](https://docs.aws.amazon.com/firehose/latest/dev/basic-deliver.html#es-index-rotation) options.
+
+To enable index rotation set the `INDEX_ROTATION` environment variable to one of the following values: `NoRotation` (default), `OneMonth`, `OneWeek`, `OneDay` or `OneHour`.
+
+## Local Cognito
 
 This image is a counterpart to [local-cognito](https://github.com/humanmade/local-cognito) but can also be used with a live Cognito Idenitity Pool instance.
