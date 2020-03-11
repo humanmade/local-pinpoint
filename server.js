@@ -60,7 +60,7 @@ const setHeaders = ( req, res, headers = {} ) => {
 	} );
 }
 
-const makeRecord = ( id, event, endpoint ) => {
+const makeRecord = ( appId, event, endpoint ) => {
 	const session = {
 		session_id: event.Session.Id,
 		start_timestamp: new Date( event.Session.StartTimestamp ).getTime(),
@@ -71,7 +71,7 @@ const makeRecord = ( id, event, endpoint ) => {
 	}
 	return {
 		application: {
-			app_id: 'local',
+			app_id: appId,
 			cognito_identity_pool_id: 'local',
 			version_name: event.AppVersionCode || '',
 		},
@@ -80,13 +80,22 @@ const makeRecord = ( id, event, endpoint ) => {
 		metrics: event.Metrics || {},
 		client: {
 			client_id: endpoint.Id || '',
-			cognito_id: endpoint.User.UserId || '',
+			cognito_id: `local:${ endpoint.Id || '' }`,
 		},
 		device: {
+			locale: {
+				code: endpoint.Demographic.Locale || '',
+				country: ( endpoint.Demographic.Location.Country || '' )
+					.toUpperCase(),
+				language: ( endpoint.Demographic.Locale || '' )
+					.replace( /^([a-z]{1,3})-[a-z]{1,3}/i, '$1' )
+					.toLowerCase(),
+			},
 			model: endpoint.Demographic.Model || '',
 			make: endpoint.Demographic.Make || '',
 			platform: {
-				name: endpoint.Demographic.Platform || '',
+				name: ( endpoint.Demographic.Platform || '' ).toLowerCase(),
+				version: endpoint.Demographic.PlatformVersion || ''
 			},
 		},
 		endpoint: endpoint || {},
@@ -170,7 +179,7 @@ module.exports = router()(
 			const finalEndpoint = Object.assign( {}, storedEndpoint, Endpoint );
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
 				console.log( 'batch event', event, finalEndpoint );
-				await addRecord( makeRecord( eid, event, finalEndpoint ) );
+				await addRecord( makeRecord( req.params.app, event, finalEndpoint ) );
 			} );
 		} );
 
@@ -211,10 +220,13 @@ module.exports = router()(
 			return;
 		}
 
-		const cognitoId = basename( req.url );
+		// Fill in any gaps as Pinpoint does.
+		body.Id = req.params.endpoint;
+		body.ApplicationId = req.params.app;
+		body.CreationDate = new Date().toISOString();
 
 		await putMapping();
-		await setEndpoint( body, cognitoId );
+		await setEndpoint( body, req.params.endpoint );
 
 		setHeaders( req, res );
 		send( res, 202, {
