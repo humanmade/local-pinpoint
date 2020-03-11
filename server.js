@@ -223,7 +223,7 @@ module.exports = router()(
 		// Fill in any gaps as Pinpoint does.
 		body.Id = req.params.endpoint;
 		body.ApplicationId = req.params.app;
-		body.CreationDate = new Date().toISOString();
+		body.EffectiveDate = new Date().toISOString();
 
 		await putMapping();
 		await setEndpoint( body, req.params.endpoint );
