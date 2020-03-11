@@ -69,6 +69,14 @@ const makeRecord = ( appId, event, endpoint ) => {
 		session.duration = event.Session.Duration;
 		session.stop_timestamp = new Date( event.Session.StopTimestamp ).getTime();
 	}
+	const {
+		Locale = '',
+		Location = {},
+		Make = '',
+		Model = '',
+		Platform = '',
+		PlatformVersion = '',
+	} = endpoint.Demographic || {};
 	return {
 		application: {
 			app_id: appId,
@@ -84,18 +92,17 @@ const makeRecord = ( appId, event, endpoint ) => {
 		},
 		device: {
 			locale: {
-				code: endpoint.Demographic.Locale || '',
-				country: ( endpoint.Demographic.Location.Country || '' )
-					.toUpperCase(),
-				language: ( endpoint.Demographic.Locale || '' )
+				code: Locale || '',
+				country: ( Location.Country || '' ).toUpperCase(),
+				language: ( Locale || '' )
 					.replace( /^([a-z]{1,3})-[a-z]{1,3}/i, '$1' )
 					.toLowerCase(),
 			},
-			model: endpoint.Demographic.Model || '',
-			make: endpoint.Demographic.Make || '',
+			model: Model || '',
+			make: Make || '',
 			platform: {
-				name: ( endpoint.Demographic.Platform || '' ).toLowerCase(),
-				version: endpoint.Demographic.PlatformVersion || ''
+				name: ( Platform || '' ).toLowerCase(),
+				version: PlatformVersion || ''
 			},
 		},
 		endpoint: endpoint || {},
