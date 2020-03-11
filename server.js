@@ -225,6 +225,12 @@ module.exports = router()(
 		body.ApplicationId = req.params.app;
 		body.EffectiveDate = new Date().toISOString();
 
+		// Check endpoint exists.
+		const endpoint = await getEndpoint( req.params.endpoint );
+		if ( !endpoint.Id ) {
+			body.CreationDate = new Date().toISOString();
+		}
+
 		await putMapping();
 		await setEndpoint( body, req.params.endpoint );
 
