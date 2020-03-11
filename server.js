@@ -229,6 +229,7 @@ module.exports = router()(
 		const endpoint = await getEndpoint( req.params.endpoint );
 		if ( !endpoint.Id ) {
 			body.CreationDate = new Date().toISOString();
+			body.CohortId = Math.floor( Math.random() * 100 );
 		}
 
 		await putMapping();
