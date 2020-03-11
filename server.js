@@ -22,14 +22,6 @@ fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 	}
 } );
 
-// Delays a request.
-const msleep = n => {
-	Atomics.wait( new Int32Array( new SharedArrayBuffer( 4 ) ), 0, 0, n );
-}
-const sleep = n => {
-	msleep( n * 1000 );
-}
-
 const getIndexName = () => {
 	const date = new Date();
 	const indexRotation = process.env.INDEX_ROTATION || 'NoRotation';
@@ -198,10 +190,6 @@ module.exports = router()(
 
 		Object.entries( body.BatchItem ).forEach( async ( [ cid, item ] ) => {
 			let storedEndpoint = await getEndpoint( cid );
-			if ( !storedEndpoint.Id ) {
-				sleep( 2 );
-				storedEndpoint = await getEndpoint( cid, true );
-			}
 			const { Events, Endpoint } = item;
 			const finalEndpoint = merge( {}, storedEndpoint, Endpoint );
 			if ( !finalEndpoint.Id ) {
