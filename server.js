@@ -13,6 +13,7 @@ const { inspect, promisify } = require( 'util' );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
 const { format } = require( 'date-fns' );
+const merge = require( 'deepmerge' );
 
 // Make endpoints directory if it doesn't exist.
 fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
@@ -20,6 +21,14 @@ fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 		fs.mkdir( resolve( __dirname, 'endpoints' ), () => {} );
 	}
 } );
+
+// Delays a request.
+const msleep = n => {
+	Atomics.wait( new Int32Array( new SharedArrayBuffer( 4 ) ), 0, 0, n );
+}
+const sleep = n => {
+	msleep( n * 1000 );
+}
 
 const getIndexName = () => {
 	const date = new Date();
@@ -113,7 +122,7 @@ const makeRecord = ( appId, event, endpoint ) => {
 	};
 };
 
-const esRequest = async ( path, data, method = 'PUT' ) => {
+const esRequest = async ( path, data, method = 'PUT', log = false ) => {
 	try {
 		const rsp = await rp( {
 			uri: `${ process.env.ELASTICSEARCH_HOST || 'http://elasticsearch:9200' }/${ path }`,
@@ -123,10 +132,12 @@ const esRequest = async ( path, data, method = 'PUT' ) => {
 		} );
 		return rsp;
 	} catch ( err ) {
-		console.error( inspect( err.error, {
-			showHidden: false,
-			depth: null,
-		} ) );
+		if ( log ) {
+			console.error( inspect( err.error, {
+				showHidden: false,
+				depth: null,
+			} ) );
+		}
 		return err.error;
 	}
 }
@@ -138,7 +149,7 @@ const putMapping = async () => {
 }
 
 const addRecord = async data => {
-	return await esRequest( `${ getIndexName() }/record/`, data, 'POST' );
+	return await esRequest( `${ getIndexName() }/record/`, data, 'POST', true );
 }
 
 const setEndpoint = async ( data, id ) => {
@@ -151,12 +162,14 @@ const setEndpoint = async ( data, id ) => {
 	}
 }
 
-const getEndpoint = async id => {
+const getEndpoint = async ( id, log = false ) => {
 	try {
 		const endpoint = await readFile( resolve( __dirname, `endpoints/${id}.json` ) );
 		return JSON.parse( endpoint );
 	} catch ( err ) {
-		console.error( 'could not read endpoint.json', err );
+		if ( log ) {
+			console.error( 'could not read endpoint.json', err );
+		}
 		return {};
 	}
 }
@@ -180,15 +193,32 @@ module.exports = router()(
 
 		await putMapping();
 
+		// Capture endpoint data error.
+		let error = false;
+
 		Object.entries( body.BatchItem ).forEach( async ( [ cid, item ] ) => {
-			const storedEndpoint = await getEndpoint( cid );
+			let storedEndpoint = await getEndpoint( cid );
+			if ( !storedEndpoint.Id ) {
+				sleep( 2 );
+				storedEndpoint = await getEndpoint( cid, true );
+			}
 			const { Events, Endpoint } = item;
-			const finalEndpoint = Object.assign( {}, storedEndpoint, Endpoint );
+			const finalEndpoint = merge( {}, storedEndpoint, Endpoint );
+			if ( !finalEndpoint.Id ) {
+				error = new Error( `Could not find endpoint data for ${ cid }` );
+				return;
+			}
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
 				console.log( 'batch event', event, finalEndpoint );
 				await addRecord( makeRecord( req.params.app, event, finalEndpoint ) );
 			} );
 		} );
+
+		if ( error ) {
+			setHeaders( req, res );
+			send( res, 500, { error: { message: error.message } } );
+			return;
+		}
 
 		setHeaders( req, res );
 		send( res, 202, {
@@ -220,7 +250,7 @@ module.exports = router()(
 		send( res, 200 );
 	} ),
 	put( '/v1/apps/:app/endpoints/:endpoint', async ( req, res ) => {
-		const body = await json( req );
+		let body = await json( req );
 
 		if ( ! body.Attributes ) {
 			send( res, 500 );
@@ -228,7 +258,7 @@ module.exports = router()(
 		}
 
 		// Fill in any gaps as Pinpoint does.
-		body.Id = req.params.endpoint;
+		body.Id = req.params.endpoint || basename( req.url );
 		body.ApplicationId = req.params.app;
 		body.EffectiveDate = new Date().toISOString();
 
@@ -237,6 +267,9 @@ module.exports = router()(
 		if ( !endpoint.Id ) {
 			body.CreationDate = new Date().toISOString();
 			body.CohortId = Math.floor( Math.random() * 100 );
+		} else {
+			// Merge endpoint data in.
+			body = merge( body, endpoint );
 		}
 
 		await putMapping();
