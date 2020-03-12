@@ -152,11 +152,12 @@ const setEndpoint = async ( id, data ) => {
 		// Check endpoint exists.
 		const endpoint = await getEndpoint( id );
 		if ( !endpoint.Id ) {
+			data.Id = id;
 			data.CreationDate = new Date().toISOString();
 			data.CohortId = Math.floor( Math.random() * 100 );
 		} else {
 			// Merge endpoint data in.
-			data = merge( data, endpoint );
+			data = merge( endpoint, data );
 		}
 		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
 		return true;
@@ -200,6 +201,7 @@ module.exports = router()(
 		Object.entries( body.BatchItem ).forEach( async ( [ cid, item ] ) => {
 			const { Events, Endpoint } = item;
 			// Update the endpoint.
+			Endpoint.ApplicationId = req.params.app;
 			await setEndpoint( cid, Endpoint );
 			const endpoint = await getEndpoint( cid, true );
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
