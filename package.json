@@ -1,6 +1,6 @@
 {
   "name": "local-pinpoint",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "repository": "https://github.com/humanmade/altis-local-server",
   "description": "Local Test Server for AWS Pinpoint and Cognito",
   "main": "server.js",
