@@ -8,6 +8,7 @@ RUN mkdir -p /srv/app/endpoints
 ARG ELASTICSEARCH_HOST
 ARG INDEX_ROTATION
 
+RUN rm -rf node_modules
 RUN npm install --production
 
 VOLUME /srv/app/endpoints

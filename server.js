@@ -8,7 +8,7 @@ const {
 } = require( 'micro-fork' );
 const rp = require( 'request-promise' );
 const fs = require( 'fs' );
-const { resolve, basename } = require( 'path' );
+const { resolve } = require( 'path' );
 const { inspect, promisify } = require( 'util' );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
@@ -144,8 +144,20 @@ const addRecord = async data => {
 	return await esRequest( `${ getIndexName() }/record/`, data, 'POST', true );
 }
 
-const setEndpoint = async ( data, id ) => {
+const setEndpoint = async ( id, data ) => {
 	try {
+		// Set the updated date.
+		data.EffectiveDate = new Date().toISOString();
+
+		// Check endpoint exists.
+		const endpoint = await getEndpoint( id );
+		if ( !endpoint.Id ) {
+			data.CreationDate = new Date().toISOString();
+			data.CohortId = Math.floor( Math.random() * 100 );
+		} else {
+			// Merge endpoint data in.
+			data = merge( data, endpoint );
+		}
 		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
 		return true;
 	} catch ( err ) {
@@ -185,28 +197,16 @@ module.exports = router()(
 
 		await putMapping();
 
-		// Capture endpoint data error.
-		let error = false;
-
 		Object.entries( body.BatchItem ).forEach( async ( [ cid, item ] ) => {
-			let storedEndpoint = await getEndpoint( cid );
 			const { Events, Endpoint } = item;
-			const finalEndpoint = merge( {}, storedEndpoint, Endpoint );
-			if ( !finalEndpoint.Id ) {
-				error = new Error( `Could not find endpoint data for ${ cid }` );
-				return;
-			}
+			// Update the endpoint.
+			await setEndpoint( cid, Endpoint );
+			const endpoint = await getEndpoint( cid, true );
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
-				console.log( 'batch event', event, finalEndpoint );
-				await addRecord( makeRecord( req.params.app, event, finalEndpoint ) );
+				console.log( 'batch event', event, endpoint );
+				await addRecord( makeRecord( req.params.app, event, endpoint ) );
 			} );
 		} );
-
-		if ( error ) {
-			setHeaders( req, res );
-			send( res, 500, { error: { message: error.message } } );
-			return;
-		}
 
 		setHeaders( req, res );
 		send( res, 202, {
@@ -245,23 +245,10 @@ module.exports = router()(
 			return;
 		}
 
-		// Fill in any gaps as Pinpoint does.
-		body.Id = req.params.endpoint || basename( req.url );
+		body.Id = req.params.endpoint;
 		body.ApplicationId = req.params.app;
-		body.EffectiveDate = new Date().toISOString();
 
-		// Check endpoint exists.
-		const endpoint = await getEndpoint( req.params.endpoint );
-		if ( !endpoint.Id ) {
-			body.CreationDate = new Date().toISOString();
-			body.CohortId = Math.floor( Math.random() * 100 );
-		} else {
-			// Merge endpoint data in.
-			body = merge( body, endpoint );
-		}
-
-		await putMapping();
-		await setEndpoint( body, req.params.endpoint );
+		await setEndpoint( req.params.endpoint, body );
 
 		setHeaders( req, res );
 		send( res, 202, {
