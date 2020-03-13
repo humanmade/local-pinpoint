@@ -46,6 +46,8 @@ const uuid = placeholder =>
 		? ( placeholder ^ ( ( Math.random() * 16 ) >> ( placeholder / 4 ) ) ).toString( 16 )
 		: ( [ 1e7 ] + -1e3 + -4e3 + -8e3 + -1e11 ).replace( /[018]/g, uuid );
 
+const overwriteMerge = ( destinationArray, sourceArray ) => sourceArray;
+
 const setHeaders = ( req, res, headers = {} ) => {
 	res.setHeader( 'access-control-allow-origin', '*' );
 	if ( req.headers['access-control-request-headers'] ) {
@@ -157,7 +159,9 @@ const setEndpoint = async ( id, data ) => {
 			data.CohortId = Math.floor( Math.random() * 100 );
 		} else {
 			// Merge endpoint data in.
-			data = merge( endpoint, data );
+			data = merge( endpoint, data, {
+				arrayMerge: overwriteMerge
+			} );
 		}
 		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
 		return true;
