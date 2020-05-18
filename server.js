@@ -10,15 +10,21 @@ const rp = require( 'request-promise' );
 const fs = require( 'fs' );
 const { resolve } = require( 'path' );
 const { inspect, promisify } = require( 'util' );
+const appendFile = promisify( fs.appendFile );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
 const { format } = require( 'date-fns' );
 const merge = require( 'deepmerge' );
 
-// Make endpoints directory if it doesn't exist.
+// Make endpoints & logs directories if they don't exist.
 fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 	if ( err ) {
 		fs.mkdir( resolve( __dirname, 'endpoints' ), () => {} );
+	}
+} );
+fs.access( resolve( __dirname, 'logs' ), fs.constants.W_OK, err => {
+	if ( err ) {
+		fs.mkdir( resolve( __dirname, 'logs' ), () => {} );
 	}
 } );
 
@@ -116,6 +122,10 @@ const makeRecord = ( appId, event, endpoint ) => {
 	};
 };
 
+const writeLog = async ( filename, row ) => {
+	await appendFile( resolve( __dirname, `logs/${filename}` ), `${row.toString()}\n` );
+}
+
 const esRequest = async ( path, data, method = 'PUT', log = false ) => {
 	try {
 		const rsp = await rp( {
@@ -143,6 +153,9 @@ const putMapping = async () => {
 }
 
 const addRecord = async data => {
+	if ( process.env.LOG_EVENTS ) {
+		await writeLog( 'events.log', JSON.stringify( data ) );
+	}
 	return await esRequest( `${ getIndexName() }/record/`, data, 'POST', true );
 }
 
