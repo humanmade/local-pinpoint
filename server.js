@@ -143,7 +143,7 @@ const putMapping = async () => {
 }
 
 const addRecord = async data => {
-	return await esRequest( `${ getIndexName() }/record/`, data, 'POST', true );
+	return await esRequest( `${ getIndexName() }/_doc/`, data, 'POST', true );
 }
 
 const setEndpoint = async ( id, data ) => {
