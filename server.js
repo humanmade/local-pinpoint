@@ -34,13 +34,13 @@ const getIndexName = () => {
 	const indexBase = 'analytics';
 	switch ( indexRotation ) {
 		case 'OneMonth':
-			return `${ indexBase }-${ format( date, "yyyy-MM" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM' ) }`;
 		case 'OneWeek':
-			return `${ indexBase }-${ format( date, "yyyy-'w'ww" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-ww' ) }`;
 		case 'OneDay':
-			return `${ indexBase }-${ format( date, "yyyy-MM-dd" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM-dd' ) }`;
 		case 'OneHour':
-			return `${ indexBase }-${ format( date, "yyyy-MM-dd-HH" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM-dd-HH' ) }`;
 		case 'NoRotation':
 		default:
 			return indexBase;
@@ -111,7 +111,7 @@ const makeRecord = ( appId, event, endpoint ) => {
 			make: Make || '',
 			platform: {
 				name: ( Platform || '' ).toLowerCase(),
-				version: PlatformVersion || ''
+				version: PlatformVersion || '',
 			},
 		},
 		endpoint: endpoint || {},
@@ -156,7 +156,7 @@ const addRecord = async data => {
 	if ( process.env.LOG_EVENTS ) {
 		await writeLog( 'events.log', JSON.stringify( data ) );
 	}
-	return await esRequest( `${ getIndexName() }/record/`, data, 'POST', true );
+	return await esRequest( `${ getIndexName() }/_doc/`, data, 'POST', true );
 }
 
 const setEndpoint = async ( id, data ) => {
@@ -166,14 +166,14 @@ const setEndpoint = async ( id, data ) => {
 
 		// Check endpoint exists.
 		const endpoint = await getEndpoint( id );
-		if ( !endpoint.Id ) {
+		if ( ! endpoint.Id ) {
 			data.Id = id;
 			data.CreationDate = new Date().toISOString();
 			data.CohortId = Math.floor( Math.random() * 100 );
 		} else {
 			// Merge endpoint data in.
 			data = merge( endpoint, data, {
-				arrayMerge: overwriteMerge
+				arrayMerge: overwriteMerge,
 			} );
 		}
 		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
@@ -222,7 +222,7 @@ module.exports = router()(
 			await setEndpoint( cid, Endpoint );
 			const endpoint = await getEndpoint( cid, true );
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
-				console.log( 'batch event', event, endpoint );
+				console.log( 'batch event', eid, event, endpoint );
 				await addRecord( makeRecord( req.params.app, event, endpoint ) );
 			} );
 		} );
