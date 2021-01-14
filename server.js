@@ -36,7 +36,7 @@ const getIndexName = () => {
 		case 'OneMonth':
 			return `${ indexBase }-${ format( date, 'yyyy-MM' ) }`;
 		case 'OneWeek':
-			return `${ indexBase }-${ format( date, 'yyyy-ww' ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-\'w\'ww' ) }`;
 		case 'OneDay':
 			return `${ indexBase }-${ format( date, 'yyyy-MM-dd' ) }`;
 		case 'OneHour':
