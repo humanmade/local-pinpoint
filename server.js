@@ -10,15 +10,21 @@ const rp = require( 'request-promise' );
 const fs = require( 'fs' );
 const { resolve } = require( 'path' );
 const { inspect, promisify } = require( 'util' );
+const appendFile = promisify( fs.appendFile );
 const readFile = promisify( fs.readFile );
 const writeFile = promisify( fs.writeFile );
 const { format } = require( 'date-fns' );
 const merge = require( 'deepmerge' );
 
-// Make endpoints directory if it doesn't exist.
+// Make endpoints & logs directories if they don't exist.
 fs.access( resolve( __dirname, 'endpoints' ), fs.constants.W_OK, err => {
 	if ( err ) {
 		fs.mkdir( resolve( __dirname, 'endpoints' ), () => {} );
+	}
+} );
+fs.access( resolve( __dirname, 'logs' ), fs.constants.W_OK, err => {
+	if ( err ) {
+		fs.mkdir( resolve( __dirname, 'logs' ), () => {} );
 	}
 } );
 
@@ -28,13 +34,13 @@ const getIndexName = () => {
 	const indexBase = 'analytics';
 	switch ( indexRotation ) {
 		case 'OneMonth':
-			return `${ indexBase }-${ format( date, "yyyy-MM" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM' ) }`;
 		case 'OneWeek':
-			return `${ indexBase }-${ format( date, "yyyy-'w'ww" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-\'w\'ww' ) }`;
 		case 'OneDay':
-			return `${ indexBase }-${ format( date, "yyyy-MM-dd" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM-dd' ) }`;
 		case 'OneHour':
-			return `${ indexBase }-${ format( date, "yyyy-MM-dd-HH" ) }`;
+			return `${ indexBase }-${ format( date, 'yyyy-MM-dd-HH' ) }`;
 		case 'NoRotation':
 		default:
 			return indexBase;
@@ -105,7 +111,7 @@ const makeRecord = ( appId, event, endpoint ) => {
 			make: Make || '',
 			platform: {
 				name: ( Platform || '' ).toLowerCase(),
-				version: PlatformVersion || ''
+				version: PlatformVersion || '',
 			},
 		},
 		endpoint: endpoint || {},
@@ -115,6 +121,10 @@ const makeRecord = ( appId, event, endpoint ) => {
 		session: session,
 	};
 };
+
+const writeLog = async ( filename, row ) => {
+	await appendFile( resolve( __dirname, `logs/${filename}` ), `${row.toString()}\n` );
+}
 
 const esRequest = async ( path, data, method = 'PUT', log = false ) => {
 	try {
@@ -143,6 +153,9 @@ const putMapping = async () => {
 }
 
 const addRecord = async data => {
+	if ( process.env.LOG_EVENTS ) {
+		await writeLog( 'events.log', JSON.stringify( data ) );
+	}
 	return await esRequest( `${ getIndexName() }/_doc/`, data, 'POST', true );
 }
 
@@ -153,14 +166,14 @@ const setEndpoint = async ( id, data ) => {
 
 		// Check endpoint exists.
 		const endpoint = await getEndpoint( id );
-		if ( !endpoint.Id ) {
+		if ( ! endpoint.Id ) {
 			data.Id = id;
 			data.CreationDate = new Date().toISOString();
 			data.CohortId = Math.floor( Math.random() * 100 );
 		} else {
 			// Merge endpoint data in.
 			data = merge( endpoint, data, {
-				arrayMerge: overwriteMerge
+				arrayMerge: overwriteMerge,
 			} );
 		}
 		await writeFile( resolve( __dirname, `endpoints/${id}.json` ), JSON.stringify( data ) );
@@ -209,7 +222,7 @@ module.exports = router()(
 			await setEndpoint( cid, Endpoint );
 			const endpoint = await getEndpoint( cid, true );
 			Object.entries( Events ).forEach( async ( [ eid, event ] ) => {
-				console.log( 'batch event', event, endpoint );
+				console.log( 'batch event', eid, event, endpoint );
 				await addRecord( makeRecord( req.params.app, event, endpoint ) );
 			} );
 		} );
